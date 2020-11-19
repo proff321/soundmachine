@@ -1,0 +1,13 @@
+[Unit]
+Description=Remote controlled sound machine
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+User=pi
+ExecStart=php /home/pi/align-state.php --quiet
+
+[Install]
+WantedBy=multi-user.target
