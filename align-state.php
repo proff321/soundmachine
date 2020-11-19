@@ -1,94 +1,74 @@
 <?php
-require('/var/www/html/proc-info.php');
+require('./lib/logger.php');
+require('./lib/proc-info.php');
+require('./lib/socket.php');
+require('./lib/sound.php');
+require('./lib/state.php');
+
 pcntl_async_signals(true);
 
-function quietMode(): bool {
-	global $argv;
+class Process {
 
-	if(count($argv) > 1 && $argv[1] === '--quiet') {
-		return true;
+	private $running = true;
+	private $socket;
+
+	private function bootup() {
+		// Handle a power failure
+		if (existingState()) {
+			syncState(getState());
+		}
+
+		// $this->registerSignalHandlers();
+		$this->socket = createSocket();
 	}
 
-	return false;
-}
-
-function logger($msg, $force = false) {
-
-	if (quietMode() && !$force) {
-		return;
-	}
-
-	echo 'SOUND-MACHINE::' . $msg . PHP_EOL;
-}
-
-function startSound() {
-	logger('Start requested');
-	if (soundPlaying()) {
-		logger('Sound is already playing');
-		return;
-	}
-	logger('Running sound command');
-	// Pipe to `:` which is a noop so that the `play` command no longer holds the process open
-	$command = 'play -q --volume 1 -c 1 /var/www/html/audiocheck.net_white_192k_-3dBFS.wav repeat - | : &';
-	exec($command);
-}
-
-function stopSound() {
-	logger('Stop requested');
-	if (!soundPlaying()) {
-		logger('Sound is not playing');
-		return;
-	}
-
-	logger('Sending stop command');
-	$processId = playProcessId();
-	$command ="kill ${processId}";
-	exec($command);
-}
-
-function syncState() {
-
-	// TODO: Redesign so it doesn't kill the SD card
-	$requestedState = trim(file_get_contents('/var/www/html/requested-state'));
-	logger('Requested state: ' . $requestedState);
-
-	logger('Evaluating state change');
-	if ($requestedState == 'start') {
-		startSound();
-	}
-
-
-	if ($requestedState == 'stop') {
+	private function shutdown() {
 		stopSound();
+		cleanupState();
+		cleanupSocket($this->socket);
+	}
+
+	/**
+	 * This method does **NOT** work yet.
+	 */
+	private function registerSignalHandlers() {
+		$handler = function($signo, $sigInfo) {
+			$this->run = false;
+		};
+
+		pcntl_signal(SIGINT, $handler);
+		pcntl_signal(SIGTERM, $handler);
+		pcntl_signal(SIGALRM, $handler);
+	}
+	 
+
+	public function run() {
+		logger('Starting sync service', true);
+
+		$this->bootup();
+
+		// TODO:  Make this stop gracefully
+		// Reference: https://stackoverflow.com/a/26934307
+		// while($this->run) {
+		while(true) {
+			$commSocket = socket_accept($this->socket);
+
+			if($commSocket === false) {
+				throw new Exception('Unable to accept a connection on socket');
+			}
+
+			$requestedState = socket_read($commSocket, 7, PHP_NORMAL_READ);
+			$requestedState = trim($requestedState);
+			logger('New requested state received: ' . $requestedState);
+			syncState($requestedState);
+			socket_close($commSocket);
+		}
+
+		$this->shutdown();
+		logger('Stopped sync service', true);
 	}
 
 }
 
-
-function main() {
-	logger('Starting sync service', true);
-
-	$run = true;
-
-	$handleStop = function($signo, $sigInfo) use (&$run) {
-		logger('Stop signal received');
-		// Stop the sound process and then end the run loop
-		$run = false;
-	};
-
-	// Register an event handler for SIGNTERM
-	pcntl_signal(SIGINT, $handleStop);
-	pcntl_signal(SIGTERM, $handleStop);
-
-	// See if this can wait on a socket instead.
-	while($run) {
-		syncState();
-		logger('State synced, sleeping');
-		sleep(1);
-	}
-
-	stopSound();
-	logger('Stopped sync service', true);
-}
-
-main();
+$process = new Process();
+$process->run();
