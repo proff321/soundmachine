@@ -2,7 +2,7 @@
 
 require_once('sound.php');
 
-const STATE_FILE = 'requested-state';
+const STATE_FILE = '/tmp/requested-state';
 const SOUND_FILE = '../sounds/audiocheck.net_white_192k_-3dBFS.wav';
 
 class States {

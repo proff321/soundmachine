@@ -7,7 +7,11 @@ Type=simple
 Restart=always
 RestartSec=2
 User=pi
-ExecStart=php /home/pi/align-state.php --quiet
+
+ExecStart=php /home/pi/soundmachine/align-state.php --quiet
+
+ExecStop=bash -c 'echo "shutdown" | nc -U /home/pi/soundmachine/soundmachine.socket'
+ExecStop=sleep 3
 
 [Install]
 WantedBy=multi-user.target

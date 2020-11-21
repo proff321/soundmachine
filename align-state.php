@@ -1,9 +1,9 @@
 <?php
-require('./lib/logger.php');
-require('./lib/proc-info.php');
-require('./lib/socket.php');
-require('./lib/sound.php');
-require('./lib/state.php');
+require(__DIR__ . '/lib/logger.php');
+require(__DIR__ . '/lib/proc-info.php');
+require(__DIR__ . '/lib/socket.php');
+require(__DIR__ . '/lib/sound.php');
+require(__DIR__ . '/lib/state.php');
 
 class Process {
 
