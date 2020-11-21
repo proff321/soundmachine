@@ -7,19 +7,16 @@ const SOCKET_NAME = '/home/pi/soundmachine/soundmachine.socket';
 
 function createSocket() {
 	$socket = socket_create(AF_UNIX, SOCK_STREAM, getprotobyname('icmp'));
-	// $socket = socket_create(AF_INET, SOCK_STREAM, getprotobyname('tcp'));
 
 	if ($socket === false) {
 		throw new Exception('Unable to create socket');
 	}
 
+
+	removeSocketFile();  // May exist due to power failure
 	$bindResult = socket_bind($socket, SOCKET_NAME);
 
 	// Update the socket permissions so Apache can write to it
-	// This is only a temporary fix since the sockets file will
-	// continue to exist if the process fails.
-	// TODO:  Make this work with the /tmp directory.
-	// Reference: https://serverfault.com/a/615054
 	chmod(SOCKET_NAME, 0777);
 
 	if (!$bindResult) {
@@ -36,12 +33,16 @@ function createSocket() {
 	return $socket;
 }
 
+function removeSocketFile(): void {
+	if (file_exists(SOCKET_NAME)) {
+		unlink(SOCKET_NAME);
+	}
+}
+
 function cleanupSocket($socket) {
-	// Close the socket
 	socket_close($socket);
 
-	// Remove the socket file
-	unlink(SOCKET_NAME);
+	removeSocketFile();
 	
 	logger('Finished cleaning up socket');
 }
