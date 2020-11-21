@@ -2,8 +2,14 @@
 
 require_once('sound.php');
 
-const STATE_FILE = 'requested-state';
+const STATE_FILE = '/tmp/requested-state';
 const SOUND_FILE = '../sounds/audiocheck.net_white_192k_-3dBFS.wav';
+
+class States {
+	const START = 'start';
+	const STOP = 'stop';
+	const SHUTDOWN = 'shutdown';
+}
 
 function getSoundFilePath(): string {
 	return dirname(__FILE__) . '/' . SOUND_FILE;
@@ -22,17 +28,19 @@ function existingState(): bool {
 }
 
 function cleanupState() {
-	unlink(STATE_FILE);
+	if (existingState()){
+		unlink(STATE_FILE);
+	}
 }
 
 function syncState(string $requestedState) {
 
 	trackLastState($requestedState);
-	if ($requestedState == 'start') {
+	if ($requestedState === States::START) {
 		startSound(getSoundFilePath());
 	}
 
-	if ($requestedState == 'stop') {
+	if ($requestedState === States::STOP) {
 		stopSound();
 	}
 }
