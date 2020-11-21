@@ -17,7 +17,6 @@ class Process {
 			syncState(getState());
 		}
 
-		// $this->registerSignalHandlers();
 		$this->socket = createSocket();
 	}
 
